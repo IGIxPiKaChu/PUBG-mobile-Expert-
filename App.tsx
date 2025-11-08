@@ -101,18 +101,21 @@ const App: React.FC = () => {
     setIsSidebarOpen(false);
   };
 
-  const handleFileUpload = (content: string) => {
+  const handleFileUpload = (content: string): { success: boolean, message?: string } => {
     try {
       updateKnowledgeBase(content);
       setMessages([
         { id: Date.now(), text: "Knowledge base updated successfully. I'm ready to assist with the new information.", sender: MessageSender.SYSTEM },
       ]);
       setHasStartedChat(true);
+      return { success: true };
     } catch (error: any) {
+      const errorMessage = error.message || "An unknown error occurred.";
       setMessages((prev) => [
         ...prev,
-        { id: Date.now(), text: `Error updating knowledge base: ${error.message}`, sender: MessageSender.SYSTEM },
+        { id: Date.now(), text: `Error updating knowledge base: ${errorMessage}`, sender: MessageSender.SYSTEM },
       ]);
+      return { success: false, message: errorMessage };
     }
   };
 

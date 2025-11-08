@@ -54,15 +54,49 @@ export const getAiResponse = async (message: string): Promise<string> => {
 };
 
 export const updateKnowledgeBase = (jsonContent: string) => {
+    // A more lenient JSON parsing approach.
+    // 1. Strip comments (// and /* */) which are not valid in standard JSON.
+    let processedContent = jsonContent.replace(/\/\*[\s\S]*?\*\/|\/\/.*/g, '');
+    // 2. Remove trailing commas from arrays and objects.
+    processedContent = processedContent.replace(/,(?=\s*[}\]])/g, '');
+
     try {
-        const parsed = JSON.parse(jsonContent);
+        // Stage 1: Attempt to parse as a single, standard JSON object/array.
+        const parsed = JSON.parse(processedContent);
         knowledgeBase = JSON.stringify(parsed, null, 2);
-        localStorage.setItem('pubgKnowledgeBase', knowledgeBase);
-        startNewChat();
     } catch (error) {
-        console.error("Failed to parse or update knowledge base:", error);
-        throw new Error("Invalid JSON format. Knowledge base not updated.");
+        // If it's not the specific error for multiple JSON objects, re-throw a formatted error.
+        if (!(error instanceof SyntaxError) || !error.message.includes('Unexpected non-whitespace character after JSON')) {
+            console.error("Failed to parse standard JSON:", error);
+            const detailedError = error instanceof Error ? error.message : "An unknown parsing error occurred.";
+            throw new Error(`Invalid JSON: ${detailedError}. Please check your file.`);
+        }
+
+        // Stage 2: If the specific error occurred, it might be JSON Lines format (multiple objects).
+        // Attempt to parse it line by line.
+        try {
+            const lines = processedContent.split('\n').filter(line => line.trim() !== '');
+            if(lines.length === 0) throw new Error("File is empty after processing.");
+
+            const parsedObjects = lines.map((line, index) => {
+                try {
+                    return JSON.parse(line);
+                } catch (lineError) {
+                    throw new Error(`Error on line ${index + 1}: ${(lineError as Error).message}`);
+                }
+            });
+            // Store the collection of objects as a single JSON array.
+            knowledgeBase = JSON.stringify(parsedObjects, null, 2);
+        } catch (jsonLinesError) {
+            console.error("Failed to parse as JSON Lines:", jsonLinesError);
+            const detailedError = jsonLinesError instanceof Error ? jsonLinesError.message : "An unknown parsing error occurred.";
+            throw new Error(`Invalid JSON Lines format: ${detailedError}. Please check your file.`);
+        }
     }
+    
+    // If we reach here, one of the parsing methods was successful.
+    localStorage.setItem('pubgKnowledgeBase', knowledgeBase);
+    startNewChat();
 };
 
 startNewChat();

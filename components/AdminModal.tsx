@@ -1,10 +1,9 @@
-
 import React, { useState } from 'react';
 
 interface AdminModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onFileUpload: (content: string) => void;
+  onFileUpload: (content: string) => { success: boolean; message?: string };
   isUnlocked: boolean;
   setIsUnlocked: (unlocked: boolean) => void;
 }
@@ -27,12 +26,17 @@ const AdminModal: React.FC<AdminModalProps> = ({ isOpen, onClose, onFileUpload, 
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    setError(''); // Clear previous error
     const file = e.target.files?.[0];
     if (file && file.type === "application/json") {
       try {
         const content = await file.text();
-        onFileUpload(content);
-        onClose();
+        const result = onFileUpload(content);
+        if (result.success) {
+          onClose(); // Only close on success
+        } else {
+          setError(result.message || 'Failed to process file.');
+        }
       } catch (err) {
         setError('Failed to read the file.');
       }

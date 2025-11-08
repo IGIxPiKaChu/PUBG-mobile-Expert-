@@ -1,4 +1,3 @@
-
 export enum MessageSender {
   USER = 'user',
   AI = 'ai',
